@@ -1,0 +1,189 @@
+from tkinter import *
+import cv2
+import PIL.Image, PIL.ImageTk
+import pyttsx3
+import datetime
+import speech_recognition as sr
+#import wikipedia
+#import webbrowser
+import os
+import random
+import smtplib
+#import roman
+#from Class1 import Student
+#import pytesseract
+from PIL import Image
+
+import pandas as pd
+import numpy as np
+
+numbers = {'hundred':100, 'thousand':1000, 'lakh':100000}
+a = {'name':'pratik'}
+engine = pyttsx3.init('sapi5')
+voices = engine.getProperty('voices')
+engine.setProperty('voice', voices[0].id)
+
+window = Tk()
+
+global var
+global var1
+
+var = StringVar()
+var1 = StringVar()
+
+
+
+
+def speak(audio):
+    engine.say(audio)
+    engine.runAndWait()
+    
+def wishme():
+    hour = int(datetime.datetime.now().hour)
+    if hour >= 0 and hour <= 12:
+        var.set("Good Morning Customer") #Name - your Name
+        window.update()
+        speak("Good Morning Customer!")
+    elif hour >= 12 and hour <= 18:
+        var.set("Good Afternoon Customer!")
+        window.update()
+        speak("Good Afternoon Customer!")
+    else:
+        var.set("Good Evening Customer")
+        window.update()
+        speak("Good Evening Customer!")
+    speak("Myself Customer Service Robo! How may I help you dear") #BotName - Give a name to your assistant
+
+    
+def takeCommand():
+    r = sr.Recognizer()
+    with sr.Microphone() as source:
+        var.set("Listening...")
+        window.update()
+        print("Listening...")
+        r.pause_threshold = 1
+        r.energy_threshold = 400
+        audio = r.listen(source)
+    try:
+        var.set("Recognizing...")
+        window.update()
+        print("Recognizing")
+        query = r.recognize_google(audio, language='en')
+    except Exception as e:
+        return "None"
+    var1.set(query)
+    window.update()
+    return query
+
+
+def query():
+    btn2['state'] = 'disabled'
+    btn0['state'] = 'disabled'
+    btn1.configure(bg = 'orange')
+    wishme()
+    while True:
+        btn1.configure(bg = 'orange')
+        query = takeCommand().lower()
+
+
+        if 'exit' in query:
+            var.set("Bye Dear Customer")
+            btn1.configure(bg = '#5C85FB')
+            btn2['state'] = 'normal'
+            btn0['state'] = 'normal'
+            window.update()
+            speak("Bye Dear Customer")
+            break 
+  ######Here I am using LSTM for detecting sentiment          
+        else:
+            voc_size=5000
+            import nltk
+            import re
+            from nltk.corpus import stopwords
+            from nltk.stem.porter import PorterStemmer
+            ps = PorterStemmer()
+            corpus = []
+            review = re.sub('[^a-zA-Z]', ' ', query)
+            review = review.lower()
+            review = review.split()
+            review = [ps.stem(word) for word in review if not word in stopwords.words('english')]
+            review = ' '.join(review)
+            corpus.append(review)
+        
+            from tensorflow.keras.layers import Embedding
+            from tensorflow.keras.preprocessing.sequence import pad_sequences
+            from tensorflow.keras.models import Sequential
+            from tensorflow.keras.preprocessing.text import one_hot
+            from tensorflow.keras.layers import LSTM
+            from tensorflow.keras.layers import Dense
+    
+            onehot_repr=[one_hot(words,voc_size)for words in corpus]
+    
+            sent_length=20
+            embedded_docs=pad_sequences(onehot_repr,padding='pre',maxlen=sent_length)
+            import numpy as np
+            X_final=np.array(embedded_docs)
+            from tensorflow.keras.models import save_model, load_model
+            filepath= './saved_model'
+            model=load_model(filepath, compile = True)
+            predctn= model.predict_classes(X_final)        
+            
+            #gg1.drop(0)
+            #g1.drop(0)
+            gg=np.reshape(predctn,1)
+            gg1=pd.Series(gg)
+            g1=gg1.get(key=0)
+        
+            print(gg1)        
+            if g1==0:
+                speak("Thank you for reaching out. We are sorry for your inconvenience. We have successfully reported your query")
+            else:
+                speak("Thank you for your kind word. We are always ready for your service")
+        
+            
+        
+        
+        
+        
+        
+        
+        
+        
+#####Creating GUI        
+        
+
+def update(ind):
+    frame = frames[(ind)%100]
+    ind += 1
+    label.configure(image=frame)
+    window.after(100, update, ind)
+
+label2 = Label(window, textvariable = var1, bg = '#FAB60C')
+label2.config(font=("Courier", 20))
+var1.set('User Said:')
+label2.pack()
+
+label1 = Label(window, textvariable = var, bg = '#ADD8E6')
+label1.config(font=("Courier", 20))
+var.set('Welcome')
+label1.pack()
+
+frames = [PhotoImage(file='Assistant.gif',format = 'gif -index %i' %(i)) for i in range(100)]
+window.title('Customer Care Robo')
+
+label = Label(window, width = 500, height = 500)
+label.pack()
+window.after(0, update, 0)
+
+btn0 = Button(text = 'WISH ME',width = 20, command = wishme, bg = '#5C85FB')
+btn0.config(font=("Courier", 12))
+btn0.pack()
+btn1 = Button(text = 'query',width = 20,command = query, bg = '#5C85FB')
+btn1.config(font=("Courier", 12))
+btn1.pack()
+btn2 = Button(text = 'EXIT',width = 20, command = window.destroy, bg = '#5C85FB')
+btn2.config(font=("Courier", 12))
+btn2.pack()
+
+
+window.mainloop()
